@@ -1,32 +1,51 @@
 <?php
 require 'db.php';
 
-echo "Connected successfully<br>";
+$conn->query("
+    CREATE TABLE IF NOT EXISTS students (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL,
+        age INT NOT NULL,
+        date_enrolled DATE DEFAULT CURRENT_DATE
+    )
+");
 
-$tables = [
-  "students" => "CREATE TABLE IF NOT EXISTS students (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    age INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )",
+$conn->query("
+    CREATE TABLE IF NOT EXISTS courses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        course_name VARCHAR(100) NOT NULL
+    )
+");
 
-  "courses" => "CREATE TABLE IF NOT EXISTS courses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    course_name VARCHAR(100) NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )"
-];
+$conn->query("
+    CREATE TABLE IF NOT EXISTS enrollments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        student_id INT NOT NULL,
+        course_id INT NOT NULL,
+        enrollment_date DATE DEFAULT CURRENT_DATE,
+           FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+    )
+");
 
-foreach ($tables as $tableName => $sql) {
-  if ($conn->query($sql) === TRUE) {
-    echo "Table '$tableName' created successfully<br>";
-  } else {
-    echo "Error creating table '$tableName': " . $conn->error . "<br>";
-  }
+$existing_courses = $conn->query("SELECT * FROM courses");
+
+if ($existing_courses->num_rows == 0) {
+    $courses = [
+        'BSIT',
+        'BSBA',
+        'BSIS',
+        'ComSci',
+    ];
+
+    foreach ($courses as $course) {
+        $stmt = $conn->prepare("INSERT INTO courses (course_name) VALUES (?)");
+        $stmt->bind_param("s", $course);
+        $stmt->execute();
+        $stmt->close();
+    }
 }
 
-$conn->close();
+echo "Tables have been successfully created and courses have been populated!";
 ?>

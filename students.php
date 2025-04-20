@@ -283,8 +283,9 @@ $courses = $conn->query("SELECT * FROM courses");
                             <td><input type="text" name="name" value="<?= htmlspecialchars($row['name']) ?>"></td>
                             <td><input type="email" name="email" value="<?= htmlspecialchars($row['email']) ?>"></td>
                             <td><input type="number" name="age" value="<?= $row['age'] ?>"></td>
-                            <td><?= htmlspecialchars($row['course_name']) ?: 'N/A' ?></td>
-                            <td><input type="text" name="enrollment_date" value="<?= htmlspecialchars($row['enrollment_date']) ?>" readonly></td>
+                            <td><input type="text" name="course" value="<?=
+                            htmlspecialchars($row['course_name']) ?>"></td>
+                            <td><input type="text" name="enrollment_date" value="<?= htmlspecialchars($row['enrollment_date']) ?>"></td>
                             <td class="action">
                                 <input type="hidden" name="id" value="<?= $row['id'] ?>">
                                 <button type="submit" name="update">Update</button>

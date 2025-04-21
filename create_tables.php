@@ -4,9 +4,10 @@ require 'db.php';
 $conn->query("
     CREATE TABLE IF NOT EXISTS students (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        email VARCHAR(100) NOT NULL,
+        name VARCHAR(50) NOT NULL,
+        email VARCHAR(50) NOT NULL,
         age INT NOT NULL,
+        college_level VARCHAR(10) NOT NULL,
         date_enrolled DATE DEFAULT CURRENT_DATE
     )
 ");
@@ -17,6 +18,37 @@ $conn->query("
         course_name VARCHAR(100) NOT NULL
     )
 ");
+
+$conn->query(
+     "
+     CREATE TABLE IF NOT EXISTS college_levels 
+        (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          college_name VARCHAR(15) NOT NULL      
+
+        )
+     "   
+);
+
+
+
+$existing_level = $conn->query("SELECT * FROM college_levels");
+
+if ($existing_level->num_rows == 0) {
+    $year_level = [
+       'First Year',
+       'Second Year',
+       'Third Year',
+       'Fourth Year'
+    ];
+
+    foreach ($year_level as $lvl) {
+        $stmt = $conn->prepare("INSERT INTO college_levels (college_name) VALUES (?)");
+        $stmt->bind_param("s", $lvl);
+        $stmt->execute();
+        $stmt->close();
+    }
+}
 
 $conn->query("
     CREATE TABLE IF NOT EXISTS enrollments (

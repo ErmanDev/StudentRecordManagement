@@ -1,14 +1,17 @@
 <?php
 require 'db.php';
 
+$alert = "";
+
 if (isset($_POST['add'])) {
     $name = $_POST['name'];
     $email = $_POST['email'];
     $age = $_POST['age'];
+    $college_level = $_POST['college_level'];
     $course_id = $_POST['course_id'];
 
-    $stmt = $conn->prepare("INSERT INTO students (name, email, age, date_enrolled) VALUES (?, ?, ?, CURDATE())");
-    $stmt->bind_param("ssi", $name, $email, $age);
+    $stmt = $conn->prepare("INSERT INTO students (name, email, age, college_level, date_enrolled) VALUES (?, ?, ?, ?, CURDATE())");
+    $stmt->bind_param("ssii", $name, $email, $age, $college_level); // changed 'ssis' to 'ssii'
     $stmt->execute();
     $student_id = $stmt->insert_id;
     $stmt->close();
@@ -17,6 +20,8 @@ if (isset($_POST['add'])) {
     $enroll->bind_param("ii", $student_id, $course_id);
     $enroll->execute();
     $enroll->close();
+
+    $alert = "added";
 }
 
 if (isset($_POST['update'])) {
@@ -24,28 +29,40 @@ if (isset($_POST['update'])) {
     $name = $_POST['name'];
     $email = $_POST['email'];
     $age = $_POST['age'];
+    $college_level = $_POST['college_level'];
 
-    $stmt = $conn->prepare("UPDATE students SET name=?, email=?, age=? WHERE id=?");
-    $stmt->bind_param("ssii", $name, $email, $age, $id);
+    $stmt = $conn->prepare("UPDATE students SET name=?, email=?, age=?, college_level=? WHERE id=?");
+    $stmt->bind_param("ssiii", $name, $email, $age, $college_level, $id); // fixed types
     $stmt->execute();
     $stmt->close();
+
+    $alert = "updated";
 }
 
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
-    $conn->query("DELETE FROM students WHERE id=$id");
+    $stmt = $conn->prepare("DELETE FROM students WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
+
+    $alert = "deleted";
 }
 
 $students = $conn->query("
     SELECT
         students.*,
         courses.course_name,
+        college_levels.college_name,
         enrollments.enrollment_date
     FROM students
     LEFT JOIN enrollments ON students.id = enrollments.student_id
     LEFT JOIN courses ON enrollments.course_id = courses.id
+    LEFT JOIN college_levels ON students.college_level = college_levels.id
 ");
+
 $courses = $conn->query("SELECT * FROM courses");
+$college_levels = $conn->query("SELECT * FROM college_levels");
 ?>
 
 <!DOCTYPE html>
@@ -55,10 +72,10 @@ $courses = $conn->query("SELECT * FROM courses");
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School Management</title>
     <link rel="stylesheet" href="style.css"/>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
-    <style>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    
+      <style>
         body {
             font-family: "DM Sans", sans-serif;
             background-color: #f3fed0;
@@ -85,11 +102,11 @@ $courses = $conn->query("SELECT * FROM courses");
             height: 100%;
             margin-bottom: 2rem;
             width: 90%;
-            max-width: 900px;
+            max-width: 70rem;
         }
 
         form {
-            width: 90%;
+            width: 100%;
             max-width: 900px;
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -130,8 +147,38 @@ $courses = $conn->query("SELECT * FROM courses");
             gap: 1rem;
         }
 
+        select {
+    padding: 2px;
+    font-size: 16px;
+    border: 2px solid #4CAF50;  /* Green border */
+    border-radius: 5px;          /* Rounded corners */
+    background-color: #f9f9f9;   /* Light background */
+    color: #333;                 /* Text color */
+    width: 100%;                 /* Full width */
+    max-width: 300px;            /* Max width for large screens */
+    margin: 10px 0;              /* Space above and below */
+    transition: border-color 0.3s ease, background-color 0.3s ease;  /* Smooth transitions */
+}
+
+select:focus {
+    border-color: #45a049;   /* Darker green when focused */
+    background-color: #e8f7e3; /* Light green background when focused */
+    outline: none;            /* Remove outline */
+}
+
+option {
+    padding: 10px;
+    font-size: 16px;
+}
+
+option[selected] {
+    background-color: #4CAF50;  /* Highlight selected option */
+    color: white;                /* White text for selected */
+}
+
         table {
             width: 100%;
+
             border-collapse: collapse;
             margin-top: 20px;
             background-color: #fff;
@@ -142,7 +189,7 @@ $courses = $conn->query("SELECT * FROM courses");
 
         th, td {
             padding: 12px 15px;
-            text-align: left;
+            text-align: center;
             border-bottom: 1px solid #ddd;
         }
 
@@ -219,6 +266,8 @@ $courses = $conn->query("SELECT * FROM courses");
         }
 
         footer {
+
+         
             width: 100vw;
             background-color: #ABF600;
         }
@@ -244,68 +293,125 @@ $courses = $conn->query("SELECT * FROM courses");
             background: white;
         }
     </style>
+
 </head>
 <body>
 
-    <h2>Student Management</h2>
+<h2>Student Management</h2>
 
-    <form method="post">
-        <input type="text" name="name" placeholder="Name" required>
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="number" name="age" placeholder="Age" required>
+<form method="post">
+    <input type="text" name="name" placeholder="Name" required>
+    <input type="email" name="email" placeholder="Email" required>
+    <input type="number" name="age" placeholder="Age" required>
 
-        <select name="course_id" required>
-            <option value="">Select Course</option>
-            <?php while ($course = $courses->fetch_assoc()): ?>
-                <option value="<?= $course['id'] ?>"><?= $course['course_name'] ?></option>
-            <?php endwhile; ?>
-        </select>
+    <select name="college_level" required >
+        <option value="">Select College Level</option>
+        <?php
+      
+        $college_levels_dropdown = $conn->query("SELECT * FROM college_levels");
+        while ($lvl = $college_levels_dropdown->fetch_assoc()):
+        ?>
+            <option value="<?= $lvl['id'] ?>"><?= htmlspecialchars($lvl['college_name']) ?></option>
+        <?php endwhile; ?>
+    </select>
 
-        <button class="btn" type="submit" name="add">Add Student</button>
-    </form>
+    <select name="course_id" required>
+        <option value="">Select Course</option>
+        <?php
+        $courses_dropdown = $conn->query("SELECT * FROM courses");
+        while ($course = $courses_dropdown->fetch_assoc()):
+        ?>
+            <option value="<?= $course['id'] ?>"><?= htmlspecialchars($course['course_name']) ?></option>
+        <?php endwhile; ?>
+    </select>
 
-    <div class="container">
-        <table border="1" cellpadding="10">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Age</th>
-                    <th>Course</th>
-                    <th>Date Enrolled</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php while ($row = $students->fetch_assoc()): ?>
-                    <tr>
-                        <form method="post">
-                            <td><input type="text" name="name" value="<?= htmlspecialchars($row['name']) ?>"></td>
-                            <td><input type="email" name="email" value="<?= htmlspecialchars($row['email']) ?>"></td>
-                            <td><input type="number" name="age" value="<?= $row['age'] ?>"></td>
-                            <td><input type="text" name="course" value="<?=
-                            htmlspecialchars($row['course_name']) ?>"></td>
-                            <td><input type="text" name="enrollment_date" value="<?= htmlspecialchars($row['enrollment_date']) ?>"></td>
-                            <td class="action">
-                                <input type="hidden" name="id" value="<?= $row['id'] ?>">
-                                <button type="submit" name="update">Update</button>
-                                <a class="delete" href="?delete=<?= $row['id'] ?>" onclick="return confirm('Delete this student?')">Delete</a>
-                            </td>
-                        </form>
-                    </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
-    </div>
+    <button class="btn" type="submit" name="add">Add Student</button>
+</form>
 
-    <footer>
-        <ul>
-            <li>Mae Monterola</li>
-            <li>Kathleen Macahidhid</li>
-            <li>Mitchua Reyes</li>
-        </ul>
-    </footer>
+<div class="container">
+    <table border="1" cellpadding="10">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Age</th>
+            <th>Course</th>
+            <th>College Level</th>
+            <th>Date Enrolled</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <?php while ($row = $students->fetch_assoc()): ?>
+            <tr>
+                <form method="post">
+                    <td><input type="text" name="name" value="<?= htmlspecialchars($row['name']) ?>"></td>
+                    <td><input type="email" name="email" value="<?= htmlspecialchars($row['email']) ?>"></td>
+                    <td><input type="number" name="age" value="<?= $row['age'] ?>"></td>
+                    <td><input type="text" readonly value="<?= htmlspecialchars($row['course_name']) ?>"></td>
+                    <td>
+                        <select name="college_level" required>
+                            <?php
+                            $college_level_options = $conn->query("SELECT * FROM college_levels");
+                            while ($lvl = $college_level_options->fetch_assoc()):
+                                $selected = $lvl['id'] == $row['college_level'] ? 'selected' : '';
+                            ?>
+                                <option value="<?= $lvl['id'] ?>" <?= $selected ?>><?= htmlspecialchars($lvl['college_name']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </td>
+                    <td><input type="text" readonly value="<?= htmlspecialchars($row['enrollment_date']) ?>"></td>
 
-    <?php $conn->close(); ?>
+                    <td class="action">
+                        <input type="hidden" name="id" value="<?= $row['id'] ?>">
+                        <button type="submit" name="update">Update</button>
+                        <a class="delete" href="#" onclick="confirmDelete(<?= $row['id'] ?>)">Delete</a>
+                    </td>
+                </form>
+            </tr>
+        <?php endwhile; ?>
+        </tbody>
+    </table>
+</div>
+
+<footer>
+    <ul>
+        <li>Mae Monterola</li>
+        <li>Kathleen Macahidhid</li>
+        <li>Mitchua Reyes</li>
+    </ul>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+<?php if ($alert === "added"): ?>
+    Swal.fire({ icon: 'success', title: 'Student Added', showConfirmButton: false, timer: 1500 });
+<?php elseif ($alert === "updated"): ?>
+    Swal.fire({ icon: 'success', title: 'Student Updated', showConfirmButton: false, timer: 1500 });
+<?php elseif ($alert === "deleted"): ?>
+    Swal.fire({ icon: 'success', title: 'Student Deleted', showConfirmButton: false, timer: 1500 });
+<?php endif; ?>
+</script>
+
+<script>
+function confirmDelete(id) {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "This student will be permanently removed.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e74c3c',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = '?delete=' + id;
+        }
+    });
+}
+</script>
+
+<?php $conn->close(); ?>
 </body>
 </html>

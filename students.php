@@ -147,34 +147,7 @@ $college_levels = $conn->query("SELECT * FROM college_levels");
             gap: 1rem;
         }
 
-        select {
-    padding: 2px;
-    font-size: 16px;
-    border: 2px solid #4CAF50;  /* Green border */
-    border-radius: 5px;          /* Rounded corners */
-    background-color: #f9f9f9;   /* Light background */
-    color: #333;                 /* Text color */
-    width: 100%;                 /* Full width */
-    max-width: 300px;            /* Max width for large screens */
-    margin: 10px 0;              /* Space above and below */
-    transition: border-color 0.3s ease, background-color 0.3s ease;  /* Smooth transitions */
-}
 
-select:focus {
-    border-color: #45a049;   /* Darker green when focused */
-    background-color: #e8f7e3; /* Light green background when focused */
-    outline: none;            /* Remove outline */
-}
-
-option {
-    padding: 10px;
-    font-size: 16px;
-}
-
-option[selected] {
-    background-color: #4CAF50;  /* Highlight selected option */
-    color: white;                /* White text for selected */
-}
 
         table {
             width: 100%;
